@@ -96,7 +96,7 @@
         download(data);
       };
 
-      function arrayBufferToBase64(buffer) {
+      const arrayBufferToBase64 = (buffer) => {
         let binary = '';
         const bytes = new Uint8Array(buffer);
         const len = bytes.byteLength;
@@ -104,9 +104,9 @@
           binary += String.fromCharCode(bytes[i]);
         }
         return window.btoa(binary);
-      }
+      };
 
-      function base64ToArrayBuffer(base64) {
+      const base64ToArrayBuffer = (base64) => {
         const binary_string = window.atob(base64);
         const len = binary_string.length;
         const bytes = new Uint8Array(len);
@@ -114,7 +114,7 @@
           bytes[i] = binary_string.charCodeAt(i);
         }
         return bytes.buffer;
-      }
+      };
 
       const createKey = async (masterPassword, salt) => {
         const keyMaterial = await window.crypto.subtle.importKey(
@@ -227,11 +227,7 @@
           textArea.value = data;
         };
 
-        try {
-          reader.readAsDataURL(fileInput.files[0]);
-        } catch (e) {
-          alert(e);
-        }
+        reader.readAsDataURL(fileInput.files[0]);
       };
     </script>
   </body>
