@@ -49,6 +49,13 @@
           </div>
           <div style="display: grid; grid-auto-flow: column; height: 2rem">
             <input type="button" id="encrypt" value="Encrypt" />
+            <input
+              type="password"
+              name="password"
+              id="password"
+              placeholder="Provide master password"
+              style="width: 100%"
+            />
             <input type="button" id="decrypt" value="Decrypt" />
           </div>
         </div>
@@ -62,6 +69,7 @@
       const encryptButton = document.getElementById('encrypt');
       const downloadButton = document.getElementById('download');
       const textArea = document.getElementById('textarea');
+      const passwordInput = document.getElementById('password');
       const fileInput = document.getElementById('input');
 
       const encoder = new TextEncoder();
@@ -86,14 +94,31 @@
         document.body.removeChild(element);
       };
 
-      downloadButton.onclick = async () => {
+      const getRawData = () => {
         const data = textArea.value;
-        if (data.length === 0 || !isBase64(data)) {
-          alert('You can only download encrypted cipher');
-          return;
+        if (data.length === 0) {
+          throw 'Data was not provided';
+        } else {
+          return data;
         }
+      };
 
-        download(data);
+      const getCipherData = () => {
+        const rawData = getRawData();
+        if (!isBase64(rawData)) {
+          throw 'Provided data is not valid ciphertext';
+        } else {
+          return rawData;
+        }
+      };
+
+      downloadButton.onclick = async () => {
+        try {
+          const data = getCipherData();
+          download(data);
+        } catch {
+          alert('You can only download encrypted ciphertext');
+        }
       };
 
       const arrayBufferToBase64 = (buffer) => {
@@ -142,10 +167,10 @@
       };
 
       const getKey = async (providedSalt) => {
-        const masterPassword = window.prompt('Provide password');
+        const masterPassword = passwordInput.value;
 
-        if (masterPassword === null || masterPassword.length === 0) {
-          return null;
+        if (masterPassword.length === 0) {
+          throw 'Password was not provided';
         } else {
           const salt =
             providedSalt ?? window.crypto.getRandomValues(new Uint8Array(16));
@@ -156,14 +181,11 @@
       };
 
       encryptButton.onclick = async () => {
-        const keyData = await getKey();
-        if (keyData === null) return;
-
-        const data = textArea.value;
-        const encodedData = encoder.encode(data);
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-
         try {
+          const rawData = getRawData();
+          const keyData = await getKey();
+          const encodedData = encoder.encode(rawData);
+          const iv = window.crypto.getRandomValues(new Uint8Array(12));
           const cipher = await window.crypto.subtle.encrypt(
             { name: 'AES-GCM', iv },
             keyData.key,
@@ -177,6 +199,7 @@
           textArea.value = window.btoa(
             salt64 + CIPHER_SEPARATOR + iv64 + CIPHER_SEPARATOR + cipher64
           );
+          passwordInput.value = '';
         } catch (e) {
           alert(e);
         }
@@ -194,19 +217,13 @@
       };
 
       decryptButton.onclick = async () => {
-        const data = textArea.value;
-
-        if (data.length === 0 || !isBase64(data)) {
-          alert('Provided data is not valid cipher');
-          return;
-        }
-
-        const { salt, iv, cipher } = getDecodedParts(data);
-        const keyData = await getKey(salt);
-
-        if (keyData === null) return;
-
         try {
+          const data = getCipherData();
+          const { salt, iv, cipher } = getDecodedParts(data);
+          const keyData = await getKey(salt);
+
+          if (keyData === null) return;
+
           const result = await window.crypto.subtle.decrypt(
             { name: 'AES-GCM', iv },
             keyData.key,
@@ -214,8 +231,9 @@
           );
 
           textArea.value = decoder.decode(result);
+          passwordInput.value = '';
         } catch (e) {
-          alert('Provided password is incorrect');
+          alert(e);
         }
       };
 
